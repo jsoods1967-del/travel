@@ -1,0 +1,2209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>세부 가족여행 플래너</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #f7f8fc;
+    --card: #ffffff;
+    --border: rgba(0,0,0,0.08);
+    --text: #1a1a2e;
+    --text2: #6b7280;
+    --text3: #9ca3af;
+    --teal: #1D9E75;
+    --teal-light: #E1F5EE;
+    --teal-dark: #085041;
+    --blue: #185FA5;
+    --blue-light: #E6F1FB;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --amber-dark: #633806;
+    --purple: #534AB7;
+    --purple-light: #EEEDFE;
+    --purple-dark: #26215C;
+    --coral: #D85A30;
+    --coral-light: #FAECE7;
+    --red: #E24B4A;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; padding: 16px 16px 90px; }
+  .screen.active { display: block; }
+
+  .delete-btn {
+    background: #FEE2E2; border: none; border-radius: 8px;
+    padding: 5px 8px; font-size: 14px; cursor: pointer;
+    flex-shrink: 0; transition: background 0.15s;
+  }
+  .delete-btn:active { background: #FECACA; }
+
+  /* ── TOP BAR ── */
+  .top-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 0 12px;
+  }
+  .back-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--border); background: var(--card);
+    cursor: pointer; font-size: 16px; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+    color: var(--text);
+  }
+  .top-title { font-size: 17px; font-weight: 700; color: var(--text); }
+  .top-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+
+  /* ── HOME ── */
+  .home-header {
+    display: flex; justify-content: space-between;
+    align-items: flex-end; padding: 18px 0 14px;
+  }
+  .home-header h1 { font-size: 24px; font-weight: 700; }
+  .home-header p { font-size: 13px; color: var(--text2); margin-top: 3px; }
+  .weather-pill {
+    background: var(--blue-light); border-radius: 99px;
+    padding: 6px 12px; font-size: 12px; color: var(--blue);
+    font-weight: 600; white-space: nowrap;
+  }
+  .dday-banner {
+    background: var(--teal-light); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .dday-num { font-size: 30px; font-weight: 700; color: var(--teal-dark); }
+  .dday-unit { font-size: 13px; color: var(--teal); margin-left: 2px; }
+  .dday-sub { font-size: 13px; color: var(--teal); margin-bottom: 2px; }
+
+  .section-lbl {
+    font-size: 12px; font-weight: 700; color: var(--text2);
+    letter-spacing: 0.5px; margin: 14px 0 8px; text-transform: uppercase;
+  }
+
+  .trip-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    margin-bottom: 12px; cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .trip-card:active { transform: scale(0.98); }
+  .trip-thumb {
+    height: 120px; display: flex; align-items: center;
+    justify-content: center; position: relative; font-size: 50px;
+  }
+  .thumb-cebu { background: #B5D4F4; }
+  .thumb-osaka { background: #F4C0D1; }
+  .thumb-bkk { background: #C0DD97; }
+  .thumb-tag {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(255,255,255,0.9); border-radius: 99px;
+    padding: 3px 10px; font-size: 11px; font-weight: 700;
+  }
+  .tag-plan { color: var(--blue); }
+  .tag-done { color: var(--teal-dark); }
+  .trip-info { padding: 12px 14px 14px; }
+  .trip-name { font-size: 15px; font-weight: 700; }
+  .trip-meta {
+    font-size: 12px; color: var(--text2); margin-top: 3px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .prog-bar {
+    height: 6px; background: #f0f0f0; border-radius: 99px;
+    margin: 10px 0 4px; overflow: hidden;
+  }
+  .prog-fill { height: 100%; border-radius: 99px; }
+  .fill-teal { background: var(--teal); }
+  .fill-amber { background: var(--amber); }
+  .prog-lbl { font-size: 12px; color: var(--text2); }
+
+  .add-btn {
+    width: 100%; padding: 13px; font-size: 14px; font-weight: 600;
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    background: transparent; color: var(--text2); cursor: pointer;
+    font-family: 'Nunito', sans-serif; margin-top: 4px;
+  }
+
+  /* ── STICKERS ── */
+  .sticker-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .sticker {
+    background: var(--card); border-radius: 99px; padding: 5px 12px;
+    font-size: 12px; color: var(--text2); border: 1px solid var(--border);
+    font-weight: 600;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex; gap: 4px; background: #eef0f5;
+    border-radius: 14px; padding: 4px; margin-bottom: 14px;
+  }
+  .tab {
+    flex: 1; padding: 7px 2px; font-size: 10px; font-weight: 700;
+    text-align: center; border-radius: 10px; cursor: pointer;
+    color: var(--text2); border: none; background: transparent;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 2px; line-height: 1.2; font-family: 'Nunito', sans-serif;
+    transition: all 0.15s;
+  }
+  .tab-icon { font-size: 14px; }
+  .tab.active {
+    background: var(--card); color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .tab-section { display: none; }
+  .tab-section.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+  }
+  .card-title { font-size: 14px; font-weight: 700; margin-bottom: 10px; }
+
+  /* ── METRICS ── */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .metric {
+    background: var(--bg); border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .metric-lbl { font-size: 12px; color: var(--text2); }
+  .metric-val { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+  /* ── EXPENSE ── */
+  .exp-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .exp-item:last-child { border-bottom: none; }
+  .exp-name { font-size: 14px; font-weight: 600; }
+  .exp-cat { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .exp-amt { font-size: 14px; font-weight: 700; }
+
+  /* ── TIMELINE ── */
+  .day-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 10px;
+  }
+  .day-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .day-pill {
+    font-size: 11px; font-weight: 700; padding: 3px 10px;
+    border-radius: 99px; background: var(--teal-light); color: var(--teal-dark);
+  }
+  .day-ttl { font-size: 15px; font-weight: 700; }
+  .tl-row { display: flex; gap: 10px; margin-bottom: 9px; }
+  .tl-time { font-size: 12px; color: var(--text2); min-width: 42px; padding-top: 2px; font-weight: 600; }
+  .tl-dot-wrap { display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+  .tl-line { width: 2px; flex: 1; background: #9FE1CB; min-height: 14px; margin: 2px 0; }
+  .tl-txt { font-size: 14px; font-weight: 600; padding-top: 1px; }
+  .tl-loc { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .tl-mood { font-size: 12px; margin-top: 2px; color: var(--text2); }
+
+  /* ── MAP ── */
+  .map-wrap {
+    background: #B5D4F4; border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 10px;
+  }
+  .route-list { padding: 12px 14px; background: var(--card); }
+  .r-stop { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .r-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--blue); color: #E6F1FB;
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .r-txt { font-size: 14px; font-weight: 600; }
+  .r-line { width: 2px; height: 12px; background: #85B7EB; margin-left: 10px; }
+
+  /* ── TOURS ── */
+  .tour-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+  .tour-name { font-size: 15px; font-weight: 700; }
+  .badge {
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px;
+  }
+  .badge-green { background: var(--teal-light); color: var(--teal-dark); }
+  .badge-amber { background: var(--amber-light); color: var(--amber-dark); }
+  .tour-date { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+  .review-box { background: var(--bg); border-radius: var(--radius-sm); padding: 10px; }
+  .review-lbl { font-size: 11px; color: var(--text2); font-weight: 700; margin-bottom: 3px; }
+  .stars { color: var(--amber); font-size: 12px; margin-bottom: 3px; }
+  .review-txt { font-size: 13px; line-height: 1.55; }
+
+  /* ── PHOTOS ── */
+  .photo-date {
+    font-size: 13px; font-weight: 700; color: var(--text2);
+    margin: 12px 0 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .photo-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-bottom: 4px; }
+  .photo-cell {
+    aspect-ratio: 1; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; cursor: pointer; overflow: hidden; position: relative;
+  }
+  .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-add {
+    border: 1.5px dashed var(--border); background: var(--bg);
+    font-size: 22px; color: var(--text3);
+  }
+  .p1{background:#B5D4F4}.p2{background:#9FE1CB}.p3{background:#FAC775}
+  .p4{background:#F4C0D1}.p5{background:#C0DD97}.p6{background:#F0997B}
+  .upload-area {
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    padding: 22px; text-align: center; margin-bottom: 14px; background: var(--bg);
+  }
+  .upload-txt { font-size: 13px; color: var(--text2); margin-top: 6px; line-height: 1.5; }
+
+  /* ── NOTICE ── */
+  .notice-hero {
+    background: var(--purple-light); border-radius: var(--radius);
+    padding: 14px 16px; margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .notice-hero-sub { font-size: 13px; color: var(--purple); font-weight: 600; }
+  .notice-hero-title { font-size: 16px; font-weight: 700; color: var(--purple-dark); margin-top: 2px; }
+  .notice-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 10px;
+  }
+  .notice-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 14px; cursor: pointer;
+  }
+  .notice-header-left { display: flex; align-items: center; gap: 10px; }
+  .notice-icon-wrap {
+    width: 36px; height: 36px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .icon-purple { background: var(--purple-light); }
+  .icon-coral { background: var(--coral-light); }
+  .icon-amber { background: var(--amber-light); }
+  .notice-ttl { font-size: 14px; font-weight: 700; }
+  .notice-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .notice-chev { font-size: 14px; color: var(--text3); transition: transform 0.2s; }
+  .notice-chev.open { transform: rotate(90deg); }
+  .notice-body { display: none; padding: 0 14px 14px; border-top: 1px solid var(--border); }
+  .notice-body.open { display: block; }
+
+  .check-group-title { font-size: 12px; font-weight: 700; color: var(--text2); letter-spacing: 0.3px; margin: 10px 0 6px; text-transform: uppercase; }
+  .check-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); cursor: pointer; }
+  .check-item:last-child { border-bottom: none; }
+  .check-box {
+    width: 20px; height: 20px; border-radius: 6px;
+    border: 1.5px solid #d1d5db; display: flex; align-items: center;
+    justify-content: center; flex-shrink: 0; font-size: 12px;
+    transition: all 0.15s; background: white;
+  }
+  .check-box.checked { background: var(--teal); border-color: var(--teal); color: white; }
+  .check-label { font-size: 14px; font-weight: 600; transition: all 0.15s; }
+  .check-label.checked { color: var(--text3); text-decoration: line-through; }
+  .leaflet-map-wrap { position: relative; z-index: 1; }
+  .leaflet-pane { z-index: 1 !important; }
+  .leaflet-top, .leaflet-bottom { z-index: 2 !important; }
+  .check-del { margin-left: auto; background: none; border: none; color: var(--text3); font-size: 16px; cursor: pointer; padding: 0 2px; line-height: 1; flex-shrink: 0; }
+  .check-del:hover { color: var(--red); }
+  .check-group { margin-bottom: 6px; }
+  .check-group-hdr { display: flex; align-items: center; padding: 4px 0; }
+  .check-add-row { display: flex; gap: 6px; padding: 6px 0 4px; }
+  .check-add-input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-family: Nunito,sans-serif; background: var(--bg); color: var(--text); }
+  .check-prog-bar { flex: 1; height: 6px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
+  .check-prog-fill { height: 100%; border-radius: 99px; background: var(--teal); transition: width 0.3s; }
+  .check-prog-lbl { font-size: 12px; color: var(--text2); white-space: nowrap; font-weight: 600; }
+
+  .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-num { width: 22px; height: 22px; border-radius: 50%; background: var(--purple-light); color: var(--purple-dark); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .rule-txt { font-size: 14px; font-weight: 600; line-height: 1.5; }
+  .rule-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .nono-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .nono-item:last-child { border-bottom: none; }
+  .nono-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .nono-txt { font-size: 14px; font-weight: 600; line-height: 1.5; }
+  .nono-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    width: 100%; padding: 11px; font-size: 13px; font-weight: 700;
+    border: none; border-radius: var(--radius-sm); cursor: pointer;
+    margin-top: 8px; font-family: 'Nunito', sans-serif; transition: opacity 0.15s;
+  }
+  .btn:active { opacity: 0.8; }
+  .btn-teal { background: var(--teal-light); color: var(--teal-dark); }
+  .btn-blue { background: var(--blue-light); color: var(--blue); }
+
+  /* ── TIP BOX ── */
+  .tip {
+    background: var(--amber-light); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 12px;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .tip-txt { font-size: 13px; color: var(--amber-dark); line-height: 1.5; font-weight: 600; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 10000;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 20px 20px 0 0;
+    padding: 20px; width: 100%; max-width: 480px;
+    max-height: 80vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+  .modal-row { margin-bottom: 12px; }
+  .modal-label { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 5px; }
+  .modal input, .modal select, .modal textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 14px;
+    font-family: 'Nunito', sans-serif; background: var(--bg);
+    color: var(--text); outline: none;
+  }
+  .modal textarea { resize: vertical; min-height: 80px; }
+  .modal-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-btns button { flex: 1; padding: 12px; font-size: 14px; font-weight: 700; border: none; border-radius: var(--radius-sm); cursor: pointer; font-family: 'Nunito', sans-serif; }
+  .btn-cancel { background: var(--bg); color: var(--text2); }
+  .btn-confirm { background: var(--teal); color: white; }
+
+  /* ── FIREBASE STATUS ── */
+  .fb-banner {
+    background: var(--blue-light); border-radius: var(--radius);
+    padding: 12px 14px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .fb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); flex-shrink: 0; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .fb-txt { font-size: 13px; color: var(--blue); font-weight: 600; }
+
+  /* ── SETUP SCREEN ── */
+  .setup-wrap { padding: 30px 20px; text-align: center; }
+  .setup-emoji { font-size: 60px; margin-bottom: 16px; }
+  .setup-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .setup-desc { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 24px; }
+  .setup-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: left; margin-bottom: 12px; }
+  .setup-step { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+  .setup-step:last-child { margin-bottom: 0; }
+  .step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--teal); color: white; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .step-txt { font-size: 14px; font-weight: 600; line-height: 1.5; }
+  .step-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .setup-input-wrap { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .setup-input-wrap input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); outline: none; margin-top: 6px; }
+  .setup-input-label { font-size: 13px; font-weight: 700; color: var(--text2); }
+  .btn-setup { width: 100%; padding: 14px; font-size: 15px; font-weight: 700; background: var(--teal); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-family: 'Nunito', sans-serif; margin-top: 4px; }
+  .btn-demo { width: 100%; padding: 12px; font-size: 14px; font-weight: 600; background: transparent; color: var(--text2); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; font-family: 'Nunito', sans-serif; margin-top: 8px; }
+  .code-block { background: #1a1a2e; color: #9FE1CB; border-radius: var(--radius-sm); padding: 12px; font-size: 12px; font-family: monospace; overflow-x: auto; margin-top: 8px; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="s-setup" class="screen active">
+  <div class="setup-wrap">
+    <div class="setup-emoji">🌴</div>
+    <div class="setup-title">가족여행 플래너</div>
+    <div class="setup-desc">가족 모두가 함께 쓸 수 있는<br>실시간 여행 앱이에요!</div>
+
+    <div class="setup-card">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">🔥 Firebase 연동 방법</div>
+      <div class="setup-step">
+        <div class="step-num">1</div>
+        <div><div class="step-txt">Firebase 프로젝트 만들기</div><div class="step-sub">console.firebase.google.com 접속 → 새 프로젝트 생성</div></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">2</div>
+        <div><div class="step-txt">Realtime Database 활성화</div><div class="step-sub">빌드 → Realtime Database → 테스트 모드로 시작</div></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">3</div>
+        <div><div class="step-txt">웹 앱 등록 후 설정값 복사</div><div class="step-sub">프로젝트 설정 → 웹 앱 추가 → firebaseConfig 복사</div></div>
+      </div>
+      <div class="setup-step">
+        <div class="step-num">4</div>
+        <div><div class="step-txt">아래에 databaseURL 붙여넣기</div><div class="step-sub">https://프로젝트명.firebaseio.com 형식</div></div>
+      </div>
+    </div>
+
+    <div class="setup-input-wrap">
+      <div class="setup-input-label">Firebase Database URL</div>
+      <input type="text" id="fb-url-input" placeholder="https://your-project.firebaseio.com" />
+    </div>
+
+    <button class="btn-setup" onclick="connectFirebase()">🔗 연결하고 시작하기</button>
+    <button class="btn-demo" onclick="startDemo()">⚡ 일단 데모로 둘러보기</button>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="s-home" class="screen">
+  <div class="home-header">
+    <div>
+      <h1>내 여행 ✈️</h1>
+      <p>소중한 순간을 기록해요</p>
+    </div>
+    <div class="weather-pill">☀️ 세부 32°C</div>
+  </div>
+
+  <div id="fb-status" class="fb-banner" style="display:none">
+    <div class="fb-dot"></div>
+    <div class="fb-txt">실시간 연결됨 · 가족과 함께 보고 있어요</div>
+  </div>
+
+  <div class="dday-banner" id="dday-banner">
+    <div>
+      <div class="dday-sub" id="dday-label">다가오는 여행까지</div>
+      <div><span class="dday-num" id="dday-num">D-?</span><span class="dday-unit" id="dday-unit">일</span></div>
+    </div>
+    <div style="font-size:40px" id="dday-emoji">🌴</div>
+  </div>
+
+  <div class="section-lbl">다가오는 여행</div>
+  <div class="trip-card" onclick="goDetail()" id="main-trip-card">
+    <div class="trip-thumb thumb-cebu">
+      🏖️<div class="thumb-tag tag-plan" id="home-trip-status">계획중 ✦</div>
+      <button onclick="event.stopPropagation();editMainTrip()" style="position:absolute;top:10px;left:10px;background:rgba(255,255,255,0.85);border:none;border-radius:99px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;color:#185FA5">✏️ 수정</button>
+    </div>
+    <div class="trip-info">
+      <div class="trip-name" id="home-trip-name">세부 가족여행 🐋</div>
+      <div class="trip-meta">
+        <span id="home-trip-date">📅 26.08.20 - 08.25</span>
+        <span id="home-trip-people">👨‍👩‍👧‍👦 6명 · 5박 6일</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill fill-amber" id="home-prog" style="width:42%"></div></div>
+      <div class="prog-lbl" id="home-prog-lbl">예산 42% 사용 중 · ₩1,740,000 남음</div>
+    </div>
+  </div>
+  <div class="section-lbl">지난 여행 🗂️</div>
+  <div id="past-trips">
+    <div class="trip-card" id="past-osaka">
+      <div class="trip-thumb thumb-osaka">🍜<div class="thumb-tag tag-done">완료 ✓</div></div>
+      <div class="trip-info">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="trip-name">오사카 봄 여행 🌸</div>
+          <button class="delete-btn" onclick="deleteTrip(event,'past-osaka')">🗑️</button>
+        </div>
+        <div class="trip-meta"><span>📅 2025.04.01 - 04.05</span><span>👨‍👩‍👧‍👦 6명</span></div>
+      </div>
+    </div>
+    <div class="trip-card" id="past-bkk">
+      <div class="trip-thumb thumb-bkk">🛺<div class="thumb-tag tag-done">완료 ✓</div></div>
+      <div class="trip-info">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="trip-name">방콕 연말 여행 🎆</div>
+          <button class="delete-btn" onclick="deleteTrip(event,'past-bkk')">🗑️</button>
+        </div>
+        <div class="trip-meta"><span>📅 2024.12.26 - 12.31</span><span>👨‍👩‍👧‍👦 5명</span></div>
+      </div>
+    </div>
+  </div>
+  <button class="add-btn" onclick="showModal('modal-trip')">＋ 새 여행 추가하기</button>
+</div>
+
+<!-- DETAIL -->
+<div id="s-detail" class="screen">
+  <div class="top-bar">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div>
+      <div class="top-title" id="detail-trip-name">세부 가족여행 🌴</div>
+      <div class="top-sub" id="detail-trip-sub">26.08.20 - 08.25 · 👨‍👩‍👧‍👦 6명</div>
+    </div>
+  </div>
+  <div class="sticker-row">
+    <span class="sticker">🏖️ 막탄섬</span>
+    <span class="sticker">🐋 고래상어</span>
+    <span class="sticker">💦 캐녀닝</span>
+    <span class="sticker">🦞 씨푸드</span>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('t-budget',this)"><span class="tab-icon">💰</span>예산</button>
+    <button class="tab" onclick="switchTab('t-schedule',this)"><span class="tab-icon">📅</span>일정</button>
+    <button class="tab" onclick="switchTab('t-tours',this)"><span class="tab-icon">🎯</span>투어</button>
+    <button class="tab" onclick="switchTab('t-photos',this)"><span class="tab-icon">📸</span>사진첩</button>
+    <button class="tab" onclick="switchTab('t-notice',this)"><span class="tab-icon">📣</span>공지</button>
+  </div>
+
+  <!-- 예산 -->
+  <div id="t-budget" class="tab-section active">
+    <div class="tip"><div class="tip-icon">💡</div><div class="tip-txt">남은 예산으로 투어를 2개 더 추가할 수 있어요 🎉</div></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div style="font-size:13px;color:var(--text2);font-weight:600">💳 전체 예산</div>
+        <button onclick="editBudget()" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600;color:#185FA5;cursor:pointer;font-family:Nunito,sans-serif">✏️ 수정</button>
+      </div>
+      <div id="budget-display">
+        <div style="font-size:28px;font-weight:700" id="total-budget-disp">₩3,000,000</div>
+      </div>
+      <div id="budget-edit" style="display:none">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px">
+          <input type="number" id="budget-input" value="3000000"
+            style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:16px;font-weight:600;font-family:Nunito,sans-serif">
+          <button onclick="saveBudget()" style="padding:8px 14px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif">저장</button>
+          <button onclick="cancelBudgetEdit()" style="padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;font-family:Nunito,sans-serif">취소</button>
+        </div>
+      </div>
+      <div class="prog-bar" style="margin-top:10px"><div class="prog-fill fill-amber" id="budget-prog" style="width:42%"></div></div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px;font-weight:600" id="budget-summary">₩1,260,000 사용 · <span style="color:var(--teal)">₩1,740,000 남음 🙌</span></div>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-lbl">✈️ 항공+숙박</div><div class="metric-val" id="m-flight">₩680,000</div></div>
+      <div class="metric"><div class="metric-lbl">🍽️ 식비</div><div class="metric-val" id="m-food">₩240,000</div></div>
+      <div class="metric"><div class="metric-lbl">🚗 교통비</div><div class="metric-val" id="m-trans">₩120,000</div></div>
+      <div class="metric"><div class="metric-lbl">🎯 투어/입장료</div><div class="metric-val" id="m-tour">₩220,000</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🧾 최근 지출</div>
+      <div id="expense-list"></div>
+    </div>
+    <button class="btn btn-teal" onclick="showModal('modal-expense')">＋ 지출 추가하기</button>
+  </div>
+
+  <!-- 일정 -->
+  <div id="t-schedule" class="tab-section">
+    <div id="extra-schedule"></div>
+    <button class="btn btn-teal" onclick="showModal('modal-schedule')">＋ 일정 추가하기</button>
+  </div>
+
+  <!-- 투어 -->
+  <div id="t-tours" class="tab-section">
+    <div class="tip"><div class="tip-icon">🎯</div><div class="tip-txt" id="tour-summary">예약 완료 2개 · 검토중 1개 · 총 ₩1,236,000 (6인)</div></div>
+    <div id="extra-tours"></div>
+    <button class="btn btn-blue" onclick="showModal('modal-tour')">＋ 투어 추가하기</button>
+  </div>
+
+  <!-- 사진첩 -->
+  <div id="t-photos" class="tab-section">
+    <div class="upload-area">
+      <div style="font-size:30px">📷</div>
+      <div class="upload-txt">사진을 선택해서 날짜별로 기록해요 🌟<br><small style="font-size:11px;color:var(--text3)">(Firebase 연동 시 가족 모두와 실시간 공유)</small></div>
+      <input type="file" id="photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotos(event)">
+      <button class="btn btn-teal" style="margin-top:12px" onclick="document.getElementById('photo-input').click()">📁 사진 선택</button>
+    </div>
+    <div id="photo-sections">
+      <div class="photo-date">📅 8월 20일 · Day 1 ✈️</div>
+      <div class="photo-grid">
+        <div class="photo-cell p1">✈️</div>
+        <div class="photo-cell p2">🏨</div>
+        <div class="photo-cell p3">🦞</div>
+        <div class="photo-cell photo-add" onclick="document.getElementById('photo-input').click()">＋</div>
+      </div>
+      <div class="photo-date">📅 8월 21일 · Day 2 🐋</div>
+      <div class="photo-grid">
+        <div class="photo-cell p4">🐋</div>
+        <div class="photo-cell p5">🌊</div>
+        <div class="photo-cell p6">💦</div>
+        <div class="photo-cell p1">🤿</div>
+        <div class="photo-cell p2">🏞️</div>
+        <div class="photo-cell photo-add" onclick="document.getElementById('photo-input').click()">＋</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공지 -->
+  <div id="t-notice" class="tab-section">
+    <div class="notice-hero">
+      <div>
+        <div class="notice-hero-sub">📣 가족 공지판</div>
+        <div class="notice-hero-title">세부 여행 필독사항</div>
+      </div>
+      <div style="font-size:38px">📋</div>
+    </div>
+
+    <div id="fixed-notices">
+      <div class="notice-card">
+        <div class="notice-header" onclick="toggleNotice('n-check','chev-check')">
+          <div class="notice-header-left">
+            <div class="notice-icon-wrap icon-purple">🎒</div>
+            <div><div class="notice-ttl">준비물 체크리스트</div><div class="notice-meta" id="check-meta">0 / 12 완료</div></div>
+          </div>
+          <div class="notice-chev" id="chev-check">›</div>
+        </div>
+        <div id="n-check" class="notice-body">
+          <div id="checklist-items" style="margin-top:6px">
+            <div class="check-group" id="cg-0">
+              <div class="check-group-hdr">
+                <span class="check-group-title" id="cgt-0">서류 · 결제</span>
+                <div style="display:flex;gap:4px;margin-left:auto">
+                  <button onclick="editGroupTitle(0)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">✏️</button>
+                  <button onclick="deleteGroup(0)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">×</button>
+                </div>
+              </div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">여권 (유효기간 6개월 이상!)</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">항공권 e-티켓 저장</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">해외여행 보험 가입 증서</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">환전 (페소 · 달러 소액권)</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-add-row">
+                <input class="check-add-input" placeholder="이 구분에 항목 추가..." onkeydown="if(event.key==='Enter')addCheckItemToGroup(this)">
+                <button onclick="addCheckItemToGroup(this.previousElementSibling)" style="padding:5px 10px;background:var(--teal);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer">＋</button>
+              </div>
+            </div>
+            <div class="check-group" id="cg-1">
+              <div class="check-group-hdr">
+                <span class="check-group-title" id="cgt-1">해변 · 액티비티</span>
+                <div style="display:flex;gap:4px;margin-left:auto">
+                  <button onclick="editGroupTitle(1)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">✏️</button>
+                  <button onclick="deleteGroup(1)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">×</button>
+                </div>
+              </div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">수영복 · 래쉬가드</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">워터프루프 선크림 SPF50+</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">방수 파우치 (핸드폰 보호)</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">슬리퍼 + 운동화</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-add-row">
+                <input class="check-add-input" placeholder="이 구분에 항목 추가..." onkeydown="if(event.key==='Enter')addCheckItemToGroup(this)">
+                <button onclick="addCheckItemToGroup(this.previousElementSibling)" style="padding:5px 10px;background:var(--teal);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer">＋</button>
+              </div>
+            </div>
+            <div class="check-group" id="cg-2">
+              <div class="check-group-hdr">
+                <span class="check-group-title" id="cgt-2">건강 · 기타</span>
+                <div style="display:flex;gap:4px;margin-left:auto">
+                  <button onclick="editGroupTitle(2)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">✏️</button>
+                  <button onclick="deleteGroup(2)" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">×</button>
+                </div>
+              </div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">상비약 (지사제 필수!! 🍽️)</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">모기 기피제</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">보조배터리 + 멀티어댑터</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-item" onclick="toggleCheck(this)"><div class="check-box">✓</div><div class="check-label">현지 유심 or 로밍 신청</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button></div>
+              <div class="check-add-row">
+                <input class="check-add-input" placeholder="이 구분에 항목 추가..." onkeydown="if(event.key==='Enter')addCheckItemToGroup(this)">
+                <button onclick="addCheckItemToGroup(this.previousElementSibling)" style="padding:5px 10px;background:var(--teal);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer">＋</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px">
+            <input id="new-group-input" placeholder="새 구분 추가 (예: 의류)" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif" onkeydown="if(event.key==='Enter')addCheckGroup()">
+            <button onclick="addCheckGroup()" style="padding:8px 12px;background:var(--purple);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Nunito,sans-serif;white-space:nowrap">구분＋</button>
+          </div>
+          <div class="check-progress">
+            <div class="check-prog-bar"><div class="check-prog-fill" id="check-fill" style="width:0%"></div></div>
+            <div class="check-prog-lbl" id="check-lbl">0 / 12</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notice-card" id="ncard-rules">
+        <div class="notice-header" onclick="toggleNotice('n-rules','chev-rules')">
+          <div class="notice-header-left">
+            <div class="notice-icon-wrap icon-amber">📜</div>
+            <div><div class="notice-ttl" id="rules-title">우리 가족 여행 규칙</div><div class="notice-meta">모두 지켜주세요 🙏</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="editFixedNotice(event,'rules')" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button>
+            <div class="notice-chev" id="chev-rules">›</div>
+          </div>
+        </div>
+        <div id="n-rules" class="notice-body">
+          <div id="rules-content" style="margin-top:10px">
+            <div class="rule-item"><div class="rule-num">1</div><div><div class="rule-txt">집합 시간 10분 전까지 모이기</div><div class="rule-sub">늦으면 그날 저녁 쏘기 🍽️</div></div></div>
+            <div class="rule-item"><div class="rule-num">2</div><div><div class="rule-txt">숙소 외출 시 단톡방에 알리기</div><div class="rule-sub">혼자 돌아다니지 말 것!</div></div></div>
+            <div class="rule-item"><div class="rule-num">3</div><div><div class="rule-txt">식사는 무조건 함께</div><div class="rule-sub">여행 와서 혼밥은 금지 😤</div></div></div>
+            <div class="rule-item"><div class="rule-num">4</div><div><div class="rule-txt">사진 찍을 때 서로 협조하기</div><div class="rule-sub">찍기 싫다고 도망가지 말 것 📸</div></div></div>
+            <div class="rule-item"><div class="rule-num">5</div><div><div class="rule-txt">지출은 앱 가계부에 바로 기록</div><div class="rule-sub">나중에 몰아서 하면 카오스..</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notice-card" id="ncard-nono">
+        <div class="notice-header" onclick="toggleNotice('n-nono','chev-nono')">
+          <div class="notice-header-left">
+            <div class="notice-icon-wrap icon-coral">🚫</div>
+            <div><div class="notice-ttl" id="nono-title">세부 여행 금기사항</div><div class="notice-meta">현지 주의사항 꼭 읽기!</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <button onclick="editFixedNotice(event,'nono')" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button>
+            <div class="notice-chev" id="chev-nono">›</div>
+          </div>
+        </div>
+        <div id="n-nono" class="notice-body">
+          <div id="nono-content" style="margin-top:10px">
+            <div class="nono-item"><div class="nono-icon">🐋</div><div><div class="nono-txt">고래상어 만지거나 플래시 사용 금지</div><div class="nono-sub">벌금 + 관광 허가 취소</div></div></div>
+            <div class="nono-item"><div class="nono-icon">🪸</div><div><div class="nono-txt">산호초 밟거나 채취 절대 금지</div><div class="nono-sub">세부 바다 지키기 🌊</div></div></div>
+            <div class="nono-item"><div class="nono-icon">💧</div><div><div class="nono-txt">수돗물 절대 마시지 않기</div><div class="nono-sub">생수 또는 검증된 음료만!</div></div></div>
+            <div class="nono-item"><div class="nono-icon">🌙</div><div><div class="nono-txt">밤 11시 이후 단독 외출 자제</div><div class="nono-sub">야시장은 일찍 다녀오기</div></div></div>
+            <div class="nono-item"><div class="nono-icon">📷</div><div><div class="nono-txt">종교 시설 내 노출 의상 금지</div><div class="nono-sub">성당 방문 시 긴 옷 챙기기</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="extra-notices"></div>
+    <button class="btn btn-teal" onclick="showModal('modal-notice')">＋ 공지 추가하기</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div id="modal-expense" class="modal-overlay" onclick="closeModalOut(event,'modal-expense')">
+  <div class="modal">
+    <div class="modal-title">💰 지출 추가</div>
+    <div class="modal-row"><div class="modal-label">내용</div><input type="text" id="exp-name" placeholder="예: 점심 식사"></div>
+    <div class="modal-row"><div class="modal-label">카테고리</div>
+      <select id="exp-cat">
+        <option value="🍽️ 식비">🍽️ 식비</option>
+        <option value="🚗 교통비">🚗 교통비</option>
+        <option value="🎯 투어/입장료">🎯 투어/입장료</option>
+        <option value="🛍️ 쇼핑">🛍️ 쇼핑</option>
+        <option value="✈️ 항공+숙박">✈️ 항공+숙박</option>
+        <option value="🎲 기타">🎲 기타</option>
+      </select>
+    </div>
+    <div class="modal-row"><div class="modal-label">금액 (원)</div><input type="number" id="exp-amt" placeholder="예: 45000"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-expense')">취소</button>
+      <button class="btn-confirm" id="exp-confirm-btn" onclick="addExpense()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-schedule" class="modal-overlay" onclick="closeModalOut(event,'modal-schedule')">
+  <div class="modal">
+    <div class="modal-title">📅 일정 추가</div>
+    <div class="modal-row">
+      <div class="modal-label">날짜 📅</div>
+      <input type="date" id="sch-date" onchange="updateDayLabel()">
+    </div>
+    <div class="modal-row">
+      <div class="modal-label">시간 ⏰</div>
+      <input type="time" id="sch-time">
+    </div>
+    <div class="modal-row"><div class="modal-label">내용</div><input type="text" id="sch-txt" placeholder="예: 막탄 해변 자유시간"></div>
+    <div class="modal-row">
+      <div class="modal-label">위치 📍</div>
+      <div style="position:relative">
+        <input type="text" id="sch-loc" placeholder="장소명 검색..." autocomplete="off"
+          oninput="searchLocation('sch-loc','sch-loc-results')"
+          style="width:100%">
+        <div id="sch-loc-results" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;z-index:99999;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+      </div>
+    </div>
+    <div class="modal-row"><div class="modal-label">메모 (선택)</div><input type="text" id="sch-memo" placeholder="예: 🏖️ 수영 즐기기"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-schedule')">취소</button>
+      <button class="btn-confirm" id="sch-confirm-btn" onclick="addSchedule()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-tour" class="modal-overlay" onclick="closeModalOut(event,'modal-tour')">
+  <div class="modal">
+    <div class="modal-title">🎯 투어 추가</div>
+    <div class="modal-row"><div class="modal-label">투어 이름</div><input type="text" id="tour-name" placeholder="예: 오슬롭 고래상어 투어 🐋"></div>
+    <div class="modal-row"><div class="modal-label">날짜 📅</div><input type="date" id="tour-date"></div>
+    <div class="modal-row">
+      <div class="modal-label">금액 · 인원</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;position:relative">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text2);pointer-events:none">₩</span>
+          <input type="number" id="tour-price" placeholder="120000" oninput="calcTourTotal()" style="padding-left:22px;width:100%">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0 10px">
+          <button type="button" onclick="changePeople(-1)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:0;line-height:1">−</button>
+          <span id="tour-people-num" style="font-size:14px;font-weight:700;min-width:20px;text-align:center">6</span>
+          <span style="font-size:12px;color:var(--text2)">명</span>
+          <button type="button" onclick="changePeople(1)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:0;line-height:1">＋</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--teal);font-weight:600;margin-top:4px" id="tour-total-disp"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-label">상태</div>
+      <select id="tour-status">
+        <option value="confirmed">예약완료</option>
+        <option value="pending">검토중</option>
+      </select>
+    </div>
+    <div class="modal-row"><div class="modal-label">메모</div><textarea id="tour-memo" placeholder="후기나 메모를 적어요"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-tour')">취소</button>
+      <button class="btn-confirm" id="tour-confirm-btn" onclick="addTour()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-notice" class="modal-overlay" onclick="closeModalOut(event,'modal-notice')">
+  <div class="modal">
+    <div class="modal-title">📣 공지 추가</div>
+    <div class="modal-row"><div class="modal-label">제목</div><input type="text" id="notice-title" placeholder="예: 공항 집합 안내 📍"></div>
+    <div class="modal-row"><div class="modal-label">내용</div><textarea id="notice-content" placeholder="가족에게 공유할 내용을 적어요"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-notice')">취소</button>
+      <button class="btn-confirm" id="notice-confirm-btn" onclick="addNotice()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-trip" class="modal-overlay" onclick="closeModalOut(event,'modal-trip')">
+  <div class="modal">
+    <div class="modal-title" id="trip-modal-title">✈️ 새 여행 추가</div>
+    <div class="modal-row"><div class="modal-label">여행 이름</div><input type="text" id="trip-name" placeholder="예: 도쿄 가족여행 🗼"></div>
+    <div class="modal-row"><div class="modal-label">출발일 📅</div><input type="date" id="trip-start"></div>
+    <div class="modal-row"><div class="modal-label">귀국일 📅</div><input type="date" id="trip-end"></div>
+    <div class="modal-row"><div class="modal-label">인원</div><input type="text" id="trip-people" placeholder="예: 6명"></div>
+    <div class="modal-row"><div class="modal-label">예산 (원)</div><input type="number" id="trip-budget" placeholder="예: 5000000"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal('modal-trip')">취소</button>
+      <button class="btn-confirm" id="trip-confirm-btn" onclick="addTrip()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// ── STATE ──
+let db = null;
+let useFirebase = false;
+let expenses = [
+  { name: '오슬롭 고래상어 투어', cat: '🎯 투어/입장료', amt: 96000 },
+  { name: '막탄 씨푸드 저녁', cat: '🍽️ 식비', amt: 84000 },
+  { name: '그랩 택시 x3', cat: '🚗 교통비', amt: 28000 },
+];
+let totalBudget = 3000000;
+let spent = 1260000;
+
+let tourItems = [
+  { name: '오슬롭 고래상어 수영 🐋', date: '2026-08-21', dateStr: '8월 21일 · ₩576,000 (6인)', price: 96000, people: 6, status: 'confirmed', memo: '세부 최고의 경험! 고래상어와 직접 수영할 수 있어 가족 모두 감동. 아이들도 구명조끼로 안전하게 참여 가능해요.' },
+  { name: '카와산 캐녀닝 💦', date: '2026-08-21', dateStr: '8월 21일 오후 · ₩360,000 (6인)', price: 60000, people: 6, status: 'confirmed', memo: '에메랄드빛 협곡 액티비티. 장비 대여 포함 패키지 추천!' },
+  { name: '막탄 섬 호핑 투어 🚢', date: '2026-08-23', dateStr: '8월 23일 예정 · 약 ₩300,000', price: 50000, people: 6, status: 'pending', memo: '스노클링과 바비큐 점심! 가족 여행 최고 인기 투어 🐠' },
+];
+
+// ── D-DAY ──
+let upcomingTrips = [
+  { name: '세부 가족여행 🐋', start: '2026-08-20', end: '2026-08-25', people: '6명', emoji: '🏖️' }
+];
+
+function formatDateKo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${d.getFullYear().toString().slice(2)}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function updateHomeTripCard(target) {
+  if (!target) return;
+  const nameEl = document.getElementById('home-trip-name');
+  const dateEl = document.getElementById('home-trip-date');
+  const peopleEl = document.getElementById('home-trip-people');
+  const statusEl = document.getElementById('home-trip-status');
+  const detailNameEl = document.getElementById('detail-trip-name');
+  const detailSubEl = document.getElementById('detail-trip-sub');
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(target.start);
+  const end = new Date(target.end);
+  const nights = Math.round((end - start) / (1000*60*60*24));
+  const startStr = formatDateKo(target.start);
+  const endStr = formatDateKo(target.end);
+  const endShort = `${String(end.getMonth()+1).padStart(2,'0')}.${String(end.getDate()).padStart(2,'0')}`;
+
+  if (nameEl) nameEl.textContent = target.name;
+  if (dateEl) dateEl.textContent = `📅 ${startStr} - ${endShort}`;
+  if (peopleEl) peopleEl.textContent = `👨‍👩‍👧‍👦 ${target.people || ''} · ${nights}박 ${nights+1}일`;
+  if (statusEl) {
+    const isPast = today > end;
+    const isOngoing = today >= start && today <= end;
+    statusEl.textContent = isPast ? '완료 ✓' : isOngoing ? '여행중 🎊' : '계획중 ✦';
+    statusEl.className = 'thumb-tag ' + (isPast ? 'tag-done' : 'tag-plan');
+  }
+  if (detailNameEl) detailNameEl.textContent = target.name;
+  if (detailSubEl) detailSubEl.textContent = `${startStr} - ${endShort} · 👨‍👩‍👧‍👦 ${target.people || ''}`;
+}
+
+function updateDday() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // 1순위: 오늘 이후 가장 가까운 여행
+  let target = null;
+  const future = upcomingTrips.filter(t => new Date(t.end) >= today);
+  if (future.length) {
+    future.sort((a,b) => new Date(a.start) - new Date(b.start));
+    target = future[0];
+  }
+  // 2순위: 미래 여행 없으면 가장 최근 지난 여행
+  if (!target && upcomingTrips.length) {
+    const past = [...upcomingTrips].sort((a,b) => new Date(b.start) - new Date(a.start));
+    target = past[0];
+  }
+
+  const ddayEl = document.getElementById('dday-num');
+  const labelEl = document.getElementById('dday-label');
+  const unitEl = document.getElementById('dday-unit');
+  const emojiEl = document.getElementById('dday-emoji');
+  if (!target || !ddayEl) return;
+
+  // 홈 카드도 같이 업데이트
+  updateHomeTripCard(target);
+
+  const start = new Date(target.start);
+  const end = new Date(target.end);
+  const diffStart = Math.ceil((start - today) / (1000*60*60*24));
+  const diffEnd = Math.ceil((end - today) / (1000*60*60*24));
+
+  if (diffStart > 0) {
+    ddayEl.textContent = 'D-' + diffStart;
+    unitEl.textContent = '일';
+    labelEl.textContent = target.name + ' 출발까지';
+    if (emojiEl) emojiEl.textContent = target.emoji || '✈️';
+  } else if (diffEnd >= 0) {
+    ddayEl.textContent = '여행중!';
+    unitEl.textContent = '';
+    labelEl.textContent = target.name + ' 진행중 🎉';
+    if (emojiEl) emojiEl.textContent = '🎊';
+  } else {
+    ddayEl.textContent = 'D+' + Math.abs(diffStart);
+    unitEl.textContent = '일';
+    labelEl.textContent = target.name + ' 여행 완료';
+    if (emojiEl) emojiEl.textContent = '🗂️';
+  }
+}
+
+// 자정마다 D-day 자동 갱신
+function scheduleMidnightRefresh() {
+  const now = new Date();
+  const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1) - now;
+  setTimeout(() => {
+    updateDday();
+    scheduleMidnightRefresh();
+  }, msUntilMidnight);
+}
+
+// ── FIREBASE CONNECT ──
+function connectFirebase() {
+  const url = document.getElementById('fb-url-input').value.trim();
+  if (!url || !url.startsWith('https://')) {
+    alert('올바른 Firebase Database URL을 입력해주세요!\n예: https://your-project.firebaseio.com');
+    return;
+  }
+  try {
+    const app = firebase.initializeApp({ databaseURL: url });
+    db = firebase.database(app);
+    db.ref('.info/connected').on('value', snap => {
+      if (snap.val()) {
+        useFirebase = true;
+        document.getElementById('fb-status').style.display = 'flex';
+        listenFirebase();
+      }
+    });
+    startApp();
+  } catch(e) {
+    alert('연결 실패: ' + e.message + '\n\nFirebase URL을 확인해주세요.');
+  }
+}
+
+function startDemo() {
+  startApp();
+}
+
+function getTargetTrip() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (!upcomingTrips.length) return null;
+  const future = upcomingTrips.filter(t => new Date(t.end) >= today);
+  return future.length
+    ? future.sort((a,b) => new Date(a.start)-new Date(b.start))[0]
+    : [...upcomingTrips].sort((a,b) => new Date(b.start)-new Date(a.start))[0];
+}
+
+function getTargetTrip() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (!upcomingTrips.length) return null;
+  const future = upcomingTrips.filter(t => new Date(t.end) >= today);
+  return future.length
+    ? future.sort((a,b) => new Date(a.start)-new Date(b.start))[0]
+    : [...upcomingTrips].sort((a,b) => new Date(b.start)-new Date(a.start))[0];
+}
+
+function startApp() {
+  document.getElementById('s-setup').classList.remove('active');
+  document.getElementById('s-home').classList.add('active');
+  renderExpenses(expenses);
+  updateBudgetUI();
+  renderExtraSchedule(scheduleItems);
+  renderExtraTours(tourItems);
+  const target = getTargetTrip();
+  if (target) updateHomeTripCard(target);
+  updateDday();
+  scheduleMidnightRefresh();
+}
+// ── FIREBASE LISTENERS ──
+function listenFirebase() {
+  if (!db) return;
+  db.ref('cebu/budget').on('value', snap => {
+    const val = snap.val();
+    if (val && typeof val === 'number') {
+      totalBudget = val;
+      document.getElementById('total-budget-disp').textContent = '₩' + val.toLocaleString();
+      document.getElementById('budget-input').value = val;
+      updateBudgetUI();
+    }
+  });
+  db.ref('cebu/expenses').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      expenses = Object.entries(data).map(([key, v]) => ({...v, key}));
+      renderExpenses(expenses);
+      spent = expenses.reduce((s, e) => s + (e.amt||0), 0);
+      updateBudgetUI();
+    }
+  });
+  db.ref('cebu/schedule').on('value', snap => {
+    const data = snap.val();
+    if (data) renderExtraSchedule(Object.entries(data).map(([key,v])=>({...v,key})));
+  });
+  db.ref('cebu/tours').on('value', snap => {
+    const data = snap.val();
+    if (data) renderExtraTours(Object.entries(data).map(([key,v])=>({...v,key})));
+  });
+  db.ref('cebu/notices').on('value', snap => {
+    const data = snap.val();
+    if (data) renderExtraNotices(Object.entries(data).map(([key,v])=>({...v,key})));
+  });
+}
+
+// ── SAVE / UPDATE / DELETE FIREBASE ──
+function saveData(path, data) {
+  if (useFirebase && db) {
+    return db.ref('cebu/' + path).push(data).then(r => r.key);
+  }
+  return Promise.resolve(null);
+}
+function updateData(path, key, data) {
+  if (useFirebase && db) db.ref('cebu/' + path + '/' + key).update(data);
+}
+function deleteData(path, key) {
+  if (useFirebase && db) db.ref('cebu/' + path + '/' + key).remove();
+}
+
+// ── NAVIGATION ──
+function goDetail() {
+  document.getElementById('s-home').classList.remove('active');
+  document.getElementById('s-detail').classList.add('active');
+}
+function goHome() {
+  document.getElementById('s-detail').classList.remove('active');
+  document.getElementById('s-home').classList.add('active');
+}
+function switchTab(id, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(id).classList.add('active');
+}
+
+// ── MODALS ──
+function showModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModalOut(e, id) { if (e.target.classList.contains('modal-overlay')) closeModal(id); }
+
+function editBudget() {
+  document.getElementById('budget-display').style.display = 'none';
+  document.getElementById('budget-edit').style.display = 'block';
+  document.getElementById('budget-input').value = totalBudget;
+  document.getElementById('budget-input').focus();
+}
+
+function saveBudget() {
+  const val = parseInt(document.getElementById('budget-input').value) || 0;
+  if (val <= 0) { alert('올바른 예산을 입력해주세요!'); return; }
+  totalBudget = val;
+  document.getElementById('total-budget-disp').textContent = '₩' + val.toLocaleString();
+  cancelBudgetEdit();
+  updateBudgetUI();
+  if (useFirebase && db) db.ref('cebu/budget').set(val);
+}
+
+function cancelBudgetEdit() {
+  document.getElementById('budget-display').style.display = 'block';
+  document.getElementById('budget-edit').style.display = 'none';
+}
+
+// ── EXPENSE ──
+let editingExpenseKey = null;
+function addExpense() {
+  const name = document.getElementById('exp-name').value.trim();
+  const cat = document.getElementById('exp-cat').value;
+  const amt = parseInt(document.getElementById('exp-amt').value) || 0;
+  if (!name || !amt) { alert('내용과 금액을 입력해주세요!'); return; }
+  if (editingExpenseKey !== null) {
+    const old = expenses[editingExpenseKey];
+    spent -= old.amt;
+    expenses[editingExpenseKey] = { name, cat, amt, key: old.key };
+    spent += amt;
+    if (old.key) updateData('expenses', old.key, { name, cat, amt });
+    editingExpenseKey = null;
+    document.querySelector('#modal-expense .modal-title').textContent = '💰 지출 추가';
+    const btn = document.getElementById('exp-confirm-btn');
+    btn.textContent = '추가';
+    btn.onclick = addExpense;
+  } else {
+    const item = { name, cat, amt };
+    expenses.unshift(item);
+    spent += amt;
+    saveData('expenses', item).then(key => { if(key) expenses[0].key = key; });
+  }
+  renderExpenses(expenses);
+  updateBudgetUI();
+  closeModal('modal-expense');
+  document.getElementById('exp-name').value = '';
+  document.getElementById('exp-amt').value = '';
+}
+
+function renderExpenses(list) {
+  const el = document.getElementById('expense-list');
+  el.innerHTML = list.map((e, i) => `
+    <div class="exp-item" id="exp-row-${i}">
+      <div style="flex:1">
+        <div class="exp-name" onclick="inlineEditExp(${i})" style="cursor:pointer">${e.name}</div>
+        <div class="exp-cat">${e.cat}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <div class="exp-amt" onclick="inlineEditExp(${i})" style="cursor:pointer">₩${Number(e.amt).toLocaleString()}</div>
+        <button onclick="removeExpense(${i})" style="background:#FEE2E2;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function inlineEditExp(i) {
+  const e = expenses[i];
+  const row = document.getElementById('exp-row-' + i);
+  const cats = ['🍽️ 식비','🚗 교통비','🎯 투어/입장료','🛍️ 쇼핑','✈️ 항공+숙박','🎲 기타'];
+  const catOpts = cats.map(c => `<option ${c===e.cat?'selected':''}>${c}</option>`).join('');
+  row.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px;width:100%;padding:4px 0">
+      <input id="ie-name-${i}" value="${e.name}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:Nunito,sans-serif">
+      <div style="display:flex;gap:6px">
+        <select id="ie-cat-${i}" style="flex:1;padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">${catOpts}</select>
+        <input id="ie-amt-${i}" type="number" value="${e.amt}" style="width:100px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:Nunito,sans-serif">
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="saveInlineExp(${i})" style="flex:1;padding:8px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;cursor:pointer">저장</button>
+        <button onclick="renderExpenses(expenses)" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer">취소</button>
+        <button onclick="removeExpense(${i})" style="padding:8px 12px;background:#FEE2E2;color:#991b1b;border:none;border-radius:8px;font-size:13px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function saveInlineExp(i) {
+  const name = document.getElementById('ie-name-' + i).value.trim();
+  const cat = document.getElementById('ie-cat-' + i).value;
+  const amt = parseInt(document.getElementById('ie-amt-' + i).value) || 0;
+  if (!name || !amt) { alert('내용과 금액을 입력해주세요!'); return; }
+  spent -= expenses[i].amt;
+  expenses[i] = { ...expenses[i], name, cat, amt };
+  spent += amt;
+  if (expenses[i].key) updateData('expenses', expenses[i].key, { name, cat, amt });
+  renderExpenses(expenses);
+  updateBudgetUI();
+}
+
+function editExpense(i) {
+  const e = expenses[i];
+  document.getElementById('exp-name').value = e.name;
+  document.getElementById('exp-cat').value = e.cat;
+  document.getElementById('exp-amt').value = e.amt;
+  editingExpenseKey = i;
+  document.querySelector('#modal-expense .modal-title').textContent = '✏️ 지출 수정';
+  const btn = document.getElementById('exp-confirm-btn');
+  btn.textContent = '수정 완료';
+  btn.onclick = addExpense;
+  showModal('modal-expense');
+}
+
+function removeExpense(i) {
+  if (!confirm('이 지출을 삭제할까요?')) return;
+  spent -= expenses[i].amt;
+  if (expenses[i].key) deleteData('expenses', expenses[i].key);
+  expenses.splice(i, 1);
+  renderExpenses(expenses);
+  updateBudgetUI();
+}
+
+function updateBudgetUI() {
+  const pct = Math.min(100, Math.round(spent / totalBudget * 100));
+  const remain = totalBudget - spent;
+  document.getElementById('budget-prog').style.width = pct + '%';
+  document.getElementById('budget-prog').className = 'prog-fill ' + (pct > 70 ? 'fill-amber' : 'fill-teal');
+  document.getElementById('budget-summary').innerHTML =
+    `₩${spent.toLocaleString()} 사용 · <span style="color:var(--teal)">₩${remain.toLocaleString()} 남음 🙌</span>`;
+  document.getElementById('home-prog').style.width = pct + '%';
+  document.getElementById('home-prog-lbl').textContent = `예산 ${pct}% 사용 중 · ₩${remain.toLocaleString()} 남음`;
+}
+
+// ── SCHEDULE ──
+let scheduleItems = [
+  { day: 'Day 1 · 8/20', date: '2026-08-20', time: '15:00', txt: '막탄 세부 국제공항 도착', loc: 'Mactan-Cebu International Airport', memo: '✈️ 드디어 세부다!!' },
+  { day: 'Day 1 · 8/20', date: '2026-08-20', time: '17:00', txt: '호텔 체크인', loc: 'Shangri-La Mactan Cebu', memo: '🏨 샹그릴라 막탄' },
+  { day: 'Day 1 · 8/20', date: '2026-08-20', time: '19:00', txt: '막탄 씨푸드 마켓 저녁', loc: 'Mactan, Cebu', memo: '🦞 랍스터 먹어야지' },
+  { day: 'Day 2 · 8/21', date: '2026-08-21', time: '05:00', txt: '오슬롭 출발', loc: 'Cebu City', memo: '😴 새벽 기상 파이팅..' },
+  { day: 'Day 2 · 8/21', date: '2026-08-21', time: '08:30', txt: '고래상어 수영 투어', loc: 'Oslob, Cebu', memo: '📍 오슬롭' },
+  { day: 'Day 2 · 8/21', date: '2026-08-21', time: '14:00', txt: '카와산 캐녀닝', loc: 'Kawasan Falls, Cebu', memo: '💦 에메랄드빛 폭포!' },
+  { day: 'Day 3 · 8/22', date: '2026-08-22', time: '10:00', txt: '마젤란 십자가 · 산토니뇨 성당', loc: "Magellan's Cross, Cebu City", memo: '📍 세부시티' },
+  { day: 'Day 3 · 8/22', date: '2026-08-22', time: '14:00', txt: 'SM 몰 쇼핑', loc: 'SM City Cebu', memo: '🛍️ 기념품 득템!' },
+  { day: 'Day 3 · 8/22', date: '2026-08-22', time: '19:00', txt: '야시장 투어', loc: 'Carbon Market, Cebu City', memo: '🌙 밤도 즐겨요' },
+];
+// 날짜 → "Day N · M/D" 자동 생성
+function dateToDay(dateStr) {
+  if (!dateStr) return '';
+  const target = new Date(dateStr);
+  target.setHours(0,0,0,0);
+  const month = target.getMonth() + 1;
+  const date = target.getDate();
+  let tripStart = null;
+  if (upcomingTrips.length) {
+    for (const t of upcomingTrips) {
+      const s = new Date(t.start); s.setHours(0,0,0,0);
+      const e = new Date(t.end); e.setHours(0,0,0,0);
+      if (target >= s && target <= e) { tripStart = s; break; }
+    }
+    if (!tripStart) {
+      const sorted = [...upcomingTrips].sort((a,b) => new Date(a.start)-new Date(b.start));
+      tripStart = new Date(sorted[0].start);
+      tripStart.setHours(0,0,0,0);
+    }
+  }
+  if (!tripStart) return `${month}/${date}`;
+  const dayNum = Math.round((target - tripStart) / (1000*60*60*24)) + 1;
+  return dayNum >= 1 ? `Day ${dayNum} · ${month}/${date}` : `출발 전 · ${month}/${date}`;
+}
+function updateDayLabel() {
+  // 모달에서 날짜 선택 시 미리보기 (선택적)
+}
+
+let editingSchKey = null;
+function addSchedule() {
+  const dateVal = document.getElementById('sch-date').value;
+  const time = document.getElementById('sch-time').value;
+  const txt = document.getElementById('sch-txt').value.trim();
+  const loc = document.getElementById('sch-loc').value.trim();
+  const memo = document.getElementById('sch-memo').value.trim();
+  if (!dateVal || !txt) { alert('날짜와 내용을 입력해주세요!'); return; }
+  const day = dateToDay(dateVal);
+  const timeStr = time ? time.slice(0,5) : '';
+  if (editingSchKey !== null) {
+    scheduleItems[editingSchKey] = { ...scheduleItems[editingSchKey], day, date: dateVal, time: timeStr, txt, loc, memo };
+    const k = scheduleItems[editingSchKey].key;
+    if (k) updateData('schedule', k, { day, date: dateVal, time: timeStr, txt, loc, memo });
+    editingSchKey = null;
+    document.querySelector('#modal-schedule .modal-title').textContent = '📅 일정 추가';
+    const btn = document.getElementById('sch-confirm-btn');
+    btn.textContent = '추가';
+    btn.onclick = addSchedule;
+  } else {
+    const item = { day, date: dateVal, time: timeStr, txt, loc, memo };
+    scheduleItems.push(item);
+    scheduleItems.sort((a,b) => {
+      const da = a.date || '', db = b.date || '';
+      if (da !== db) return da < db ? -1 : 1;
+      return (a.time||'') < (b.time||'') ? -1 : 1;
+    });
+    saveData('schedule', item).then(key => { if(key) scheduleItems[scheduleItems.length-1].key = key; });
+  }
+  Object.keys(dayMaps).forEach(k => { try { dayMaps[k].remove(); } catch(e){} delete dayMaps[k]; });
+  renderExtraSchedule(scheduleItems);
+  closeModal('modal-schedule');
+  ['sch-date','sch-time','sch-txt','sch-loc','sch-memo'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+}
+
+const dayMaps = {}; // 날짜별 지도 인스턴스
+
+function renderExtraSchedule(list) {
+  scheduleItems = list;
+  const el = document.getElementById('extra-schedule');
+
+  // date 기준으로 그룹핑 (date 없으면 day 기준)
+  const groups = {};
+  list.forEach((s, i) => {
+    const key = s.date || s.day;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ ...s, idx: i });
+  });
+
+  // 날짜순 정렬
+  const sortedEntries = Object.entries(groups).sort(([a],[b]) => a < b ? -1 : 1);
+
+  el.innerHTML = sortedEntries.map(([key, items]) => {
+    // day 라벨을 출발일 기준으로 다시 계산
+    const dayLabel = items[0].date ? dateToDay(items[0].date) : items[0].day;
+    items.forEach(s => { s.day = dayLabel; scheduleItems[s.idx].day = dayLabel; });
+
+    const mapId = 'map-' + dayLabel.replace(/[^a-z0-9]/gi, '_');
+    const detailId = 'day-detail-' + dayLabel.replace(/[^a-z0-9]/gi, '_');
+    return `
+    <div class="day-card">
+      <div class="day-hdr" style="cursor:pointer" onclick="toggleDayDetail('${detailId}','${mapId}',${JSON.stringify(items).replace(/"/g,'&quot;')})">
+        <span class="day-pill">${dayLabel}</span>
+        <span class="day-ttl" style="font-size:13px;color:var(--text2)">${items.length}개 일정</span>
+        <span style="margin-left:auto;font-size:14px;color:var(--text3)" id="chev-${detailId}">›</span>
+      </div>
+      <div id="${detailId}" style="display:none">
+        ${items.map(s => `
+          <div id="sch-row-${s.idx}" style="border-top:0.5px solid var(--border);padding-top:8px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:12px;color:var(--text2);min-width:38px;font-weight:600">${s.time||''}</span>
+                  <span style="font-size:14px;font-weight:600">${s.txt}</span>
+                </div>
+                ${s.loc ? `<div style="font-size:11px;color:var(--teal);margin-top:2px;padding-left:46px">📍 ${s.loc}</div>` : ''}
+                ${s.memo ? `<div style="font-size:12px;color:var(--text2);margin-top:2px;padding-left:46px">${s.memo}</div>` : ''}
+              </div>
+              <div style="display:flex;gap:4px;flex-shrink:0;margin-left:6px">
+                <button onclick="event.stopPropagation();inlineEditSch(${s.idx})" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 7px;font-size:11px;cursor:pointer">✏️</button>
+                <button onclick="event.stopPropagation();removeSchedule(${s.idx})" style="background:#FEE2E2;border:none;border-radius:6px;padding:4px 7px;font-size:11px;cursor:pointer">🗑️</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        <div id="${mapId}" style="height:200px;border-radius:10px;overflow:hidden;margin-top:12px;display:none"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleDayDetail(detailId, mapId, items) {
+  const detail = document.getElementById(detailId);
+  const mapEl = document.getElementById(mapId);
+  const chev = document.getElementById('chev-' + detailId);
+  const isOpen = detail.style.display !== 'none';
+  detail.style.display = isOpen ? 'none' : 'block';
+  if (chev) chev.textContent = isOpen ? '›' : '˅';
+  if (!isOpen) initDayMap(mapId, mapEl, items);
+}
+
+function getPrevDayLastLoc(currentDay) {
+  const currentDate = scheduleItems.find(s => s.day === currentDay)?.date || '';
+  if (!currentDate) return null;
+  const prevItems = scheduleItems.filter(s => s.date && s.date < currentDate && s.loc);
+  if (!prevItems.length) return null;
+  prevItems.sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return (a.time||'') < (b.time||'') ? -1 : 1;
+  });
+  return prevItems[prevItems.length - 1];
+}
+
+function initDayMap(mapId, mapEl, items) {
+  if (dayMaps[mapId]) { dayMaps[mapId].invalidateSize(); return; }
+  const withLoc = items.filter(s => s.loc);
+  if (!withLoc.length) { mapEl.style.display = 'none'; return; }
+  mapEl.style.display = 'block';
+
+  const map = L.map(mapEl, { zoomControl: true, scrollWheelZoom: true, doubleClickZoom: true });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // 전날 마지막 위치 찾기
+  const currentDay = items[0]?.day;
+  const prevLoc = getPrevDayLastLoc(currentDay);
+  const allItems = prevLoc ? [{ ...prevLoc, isPrev: true }, ...withLoc] : withLoc;
+
+  const promises = allItems.map(s =>
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(s.loc)}&format=json&limit=1`)
+      .then(r => r.json())
+      .then(data => data[0] ? { ...s, lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) } : null)
+      .catch(() => null)
+  );
+
+  Promise.all(promises).then(results => {
+    const valid = results.filter(Boolean);
+    if (!valid.length) { mapEl.style.display = 'none'; return; }
+
+    const prevValid = valid.filter(s => s.isPrev);
+    const todayValid = valid.filter(s => !s.isPrev);
+
+    // 전날→당일 첫번째 연결선 (회색 점선)
+    if (prevValid.length && todayValid.length) {
+      L.polyline(
+        [[prevValid[0].lat, prevValid[0].lng], [todayValid[0].lat, todayValid[0].lng]],
+        { color: '#9ca3af', weight: 2, dashArray: '4,6', opacity: 0.7 }
+      ).addTo(map);
+    }
+    // 당일 경로선 (파란 점선)
+    if (todayValid.length > 1) {
+      L.polyline(
+        todayValid.map(s => [s.lat, s.lng]),
+        { color: '#185FA5', weight: 2.5, dashArray: '6,4' }
+      ).addTo(map);
+    }
+
+    // 핀 표시
+    let todayNum = 0;
+    valid.forEach(s => {
+      const isPrev = s.isPrev;
+      if (!isPrev) todayNum++;
+      const icon = L.divIcon({
+        html: isPrev
+          ? `<div style="width:28px;height:28px;border-radius:50%;background:#9ca3af;color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">전날</div>`
+          : `<div style="width:26px;height:26px;border-radius:50%;background:#185FA5;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25)">${todayNum}</div>`,
+        className: '',
+        iconSize: isPrev ? [28,28] : [26,26],
+        iconAnchor: isPrev ? [14,14] : [13,13]
+      });
+      const label = isPrev
+        ? `<b>📍 전날 마지막 위치</b><br><small>${s.txt} · ${s.day}</small>`
+        : `<b>${s.txt}</b><br><small>${s.loc}</small>`;
+      L.marker([s.lat, s.lng], { icon }).addTo(map)
+        .bindPopup(label, { closeButton: false });
+    });
+
+    const allLatLngs = valid.map(s => [s.lat, s.lng]);
+    map.fitBounds(allLatLngs, { padding: [24, 24] });
+    dayMaps[mapId] = map;
+    setTimeout(() => map.invalidateSize(), 100);
+  });
+}
+
+function inlineEditSch(i) {
+  const s = scheduleItems[i];
+  const row = document.getElementById('sch-row-' + i);
+  const dateVal = s.date || '';
+  const timeVal = s.time || '';
+  row.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px;padding:4px 0" onclick="event.stopPropagation()">
+      <div style="display:flex;gap:6px">
+        <input id="is-date-${i}" type="date" value="${dateVal}" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+        <input id="is-time-${i}" type="time" value="${timeVal}" style="width:96px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+      </div>
+      <input id="is-txt-${i}" value="${s.txt}" placeholder="일정 내용" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:Nunito,sans-serif">
+      <div style="position:relative">
+        <input id="is-loc-${i}" value="${s.loc||''}" placeholder="장소명 검색..." autocomplete="off"
+          oninput="searchLocation('is-loc-${i}','is-loc-results-${i}')"
+          style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+        <div id="is-loc-results-${i}" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-radius:10px;z-index:99999;max-height:180px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.1)"></div>
+      </div>
+      <input id="is-memo-${i}" value="${s.memo||''}" placeholder="메모 (선택)" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+      <div style="display:flex;gap:6px">
+        <button onclick="event.stopPropagation();saveInlineSch(${i})" style="flex:1;padding:8px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;cursor:pointer">저장</button>
+        <button onclick="event.stopPropagation();renderExtraSchedule(scheduleItems)" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer">취소</button>
+        <button onclick="event.stopPropagation();removeSchedule(${i})" style="padding:8px 12px;background:#FEE2E2;color:#991b1b;border:none;border-radius:8px;font-size:13px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function saveInlineSch(i) {
+  const dateVal = document.getElementById('is-date-' + i).value;
+  const time = document.getElementById('is-time-' + i).value;
+  const txt = document.getElementById('is-txt-' + i).value.trim();
+  const loc = document.getElementById('is-loc-' + i).value.trim();
+  const memo = document.getElementById('is-memo-' + i).value.trim();
+  if (!dateVal || !txt) { alert('날짜와 내용을 입력해주세요!'); return; }
+  const day = dateToDay(dateVal);
+  const timeStr = time ? time.slice(0,5) : '';
+  scheduleItems[i] = { ...scheduleItems[i], day, date: dateVal, time: timeStr, txt, loc, memo };
+  if (scheduleItems[i].key) updateData('schedule', scheduleItems[i].key, { day, date: dateVal, time: timeStr, txt, loc, memo });
+  scheduleItems.sort((a,b) => {
+    const da = a.date||'', db = b.date||'';
+    if (da !== db) return da < db ? -1 : 1;
+    return (a.time||'') < (b.time||'') ? -1 : 1;
+  });
+  Object.keys(dayMaps).forEach(k => { try { dayMaps[k].remove(); } catch(e){} delete dayMaps[k]; });
+  renderExtraSchedule(scheduleItems);
+  // 저장 후 해당 날짜 패널 자동으로 다시 열기
+  const detailId = 'day-detail-' + day.replace(/[^a-z0-9]/gi, '_');
+  const mapId = 'map-' + day.replace(/[^a-z0-9]/gi, '_');
+  const detail = document.getElementById(detailId);
+  const mapEl = document.getElementById(mapId);
+  const chev = document.getElementById('chev-' + detailId);
+  if (detail) {
+    detail.style.display = 'block';
+    if (chev) chev.textContent = '˅';
+    const dayItems = scheduleItems.filter(s => s.day === day);
+    initDayMap(mapId, mapEl, dayItems);
+  }
+}
+
+function editSchedule(i) {
+  const s = scheduleItems[i];
+  document.getElementById('sch-date').value = s.date || '';
+  document.getElementById('sch-time').value = s.time || '';
+  document.getElementById('sch-txt').value = s.txt;
+  document.getElementById('sch-loc').value = s.loc || '';
+  document.getElementById('sch-memo').value = s.memo || '';
+  editingSchKey = i;
+  document.querySelector('#modal-schedule .modal-title').textContent = '✏️ 일정 수정';
+  const btn = document.getElementById('sch-confirm-btn');
+  btn.textContent = '수정 완료';
+  btn.onclick = addSchedule;
+  showModal('modal-schedule');
+}
+
+function removeSchedule(i) {
+  if (!confirm('이 일정을 삭제할까요?')) return;
+  if (scheduleItems[i].key) deleteData('schedule', scheduleItems[i].key);
+  scheduleItems.splice(i, 1);
+  renderExtraSchedule(scheduleItems);
+}
+
+// ── TOUR ──
+let editingTourKey = null;
+let tourPeople = 6;
+
+function changePeople(delta) {
+  tourPeople = Math.max(1, tourPeople + delta);
+  document.getElementById('tour-people-num').textContent = tourPeople;
+  calcTourTotal();
+}
+
+function calcTourTotal() {
+  const price = parseInt(document.getElementById('tour-price')?.value) || 0;
+  const total = price * tourPeople;
+  const el = document.getElementById('tour-total-disp');
+  if (el) el.textContent = price > 0 ? `총 ₩${total.toLocaleString()} (${tourPeople}명 × ₩${price.toLocaleString()})` : '';
+}
+
+function formatTourDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${d.getMonth()+1}월 ${d.getDate()}일`;
+}
+
+function addTour() {
+  const name = document.getElementById('tour-name').value.trim();
+  const dateVal = document.getElementById('tour-date').value;
+  const price = parseInt(document.getElementById('tour-price').value) || 0;
+  const people = tourPeople;
+  const status = document.getElementById('tour-status').value;
+  const memo = document.getElementById('tour-memo').value.trim();
+  if (!name) { alert('투어 이름을 입력해주세요!'); return; }
+  const dateStr = dateVal ? `${formatTourDate(dateVal)}${price ? ' · ₩' + (price * people).toLocaleString() + ' (' + people + '인)' : ''}` : '';
+  const item = { name, date: dateVal, dateStr, price, people, status, memo };
+  if (editingTourKey !== null) {
+    tourItems[editingTourKey] = { ...tourItems[editingTourKey], ...item };
+    const k = tourItems[editingTourKey].key;
+    if (k) updateData('tours', k, item);
+    editingTourKey = null;
+    document.querySelector('#modal-tour .modal-title').textContent = '🎯 투어 추가';
+    const btn = document.getElementById('tour-confirm-btn');
+    btn.textContent = '추가';
+    btn.onclick = addTour;
+  } else {
+    tourItems.push(item);
+    saveData('tours', item).then(key => { if(key) tourItems[tourItems.length-1].key = key; });
+  }
+  renderExtraTours(tourItems);
+  closeModal('modal-tour');
+  ['tour-name','tour-date','tour-price','tour-memo'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  tourPeople = 6;
+  document.getElementById('tour-people-num').textContent = '6';
+  document.getElementById('tour-total-disp').textContent = '';
+}
+
+function renderExtraTours(list) {
+  tourItems = list;
+  const el = document.getElementById('extra-tours');
+  el.innerHTML = list.map((t, i) => {
+    const dateDisplay = t.dateStr || (t.date ? formatTourDate(t.date) : '');
+    const priceDisplay = t.price && t.people
+      ? `₩${(t.price * t.people).toLocaleString()} (${t.people}인)`
+      : t.price ? `₩${Number(t.price).toLocaleString()}` : '';
+    return `
+    <div class="card" id="tour-row-${i}">
+      <div class="tour-hdr">
+        <div class="tour-name">${t.name}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="badge ${t.status==='confirmed'?'badge-green':'badge-amber'}">${t.status==='confirmed'?'예약완료':'검토중'}</span>
+          <button onclick="inlineEditTour(${i})" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button>
+          <button onclick="removeTour(${i})" style="background:#FEE2E2;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑️</button>
+        </div>
+      </div>
+      <div class="tour-date">
+        ${dateDisplay ? `📅 ${dateDisplay}` : ''}
+        ${priceDisplay ? ` · 💰 ${priceDisplay}` : ''}
+      </div>
+      ${t.memo ? `<div class="review-box"><div class="review-txt">${t.memo}</div></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function inlineEditTour(i) {
+  const t = tourItems[i];
+  const card = document.getElementById('tour-row-' + i);
+  const pp = t.people || 6;
+  card.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <input id="it-name-${i}" value="${t.name}" placeholder="투어 이름" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:Nunito,sans-serif">
+      <input id="it-date-${i}" type="date" value="${t.date||''}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;position:relative">
+          <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text2)">₩</span>
+          <input id="it-price-${i}" type="number" value="${t.price||''}" placeholder="1인 금액" oninput="calcInlineTourTotal(${i})" style="padding-left:22px;width:100%;padding-top:7px;padding-bottom:7px;padding-right:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:0 10px">
+          <button type="button" onclick="changeInlinePeople(${i},-1)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:0;line-height:1">−</button>
+          <span id="it-people-num-${i}" style="font-size:14px;font-weight:700;min-width:20px;text-align:center">${pp}</span>
+          <span style="font-size:12px;color:var(--text2)">명</span>
+          <button type="button" onclick="changeInlinePeople(${i},1)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2);padding:0;line-height:1">＋</button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--teal);font-weight:600" id="it-total-${i}"></div>
+      <select id="it-status-${i}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif">
+        <option value="confirmed" ${t.status==='confirmed'?'selected':''}>예약완료</option>
+        <option value="pending" ${t.status==='pending'?'selected':''}>검토중</option>
+      </select>
+      <textarea id="it-memo-${i}" placeholder="메모" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;resize:vertical;min-height:60px">${t.memo||''}</textarea>
+      <div style="display:flex;gap:6px">
+        <button onclick="saveInlineTour(${i})" style="flex:1;padding:8px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;cursor:pointer">저장</button>
+        <button onclick="renderExtraTours(tourItems)" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer">취소</button>
+        <button onclick="removeTour(${i})" style="padding:8px 12px;background:#FEE2E2;color:#991b1b;border:none;border-radius:8px;font-size:13px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function changeInlinePeople(i, delta) {
+  const el = document.getElementById('it-people-num-' + i);
+  const cur = parseInt(el.textContent) || 1;
+  el.textContent = Math.max(1, cur + delta);
+  calcInlineTourTotal(i);
+}
+
+function calcInlineTourTotal(i) {
+  const price = parseInt(document.getElementById('it-price-' + i)?.value) || 0;
+  const people = parseInt(document.getElementById('it-people-num-' + i)?.textContent) || 1;
+  const el = document.getElementById('it-total-' + i);
+  if (el) el.textContent = price > 0 ? `총 ₩${(price*people).toLocaleString()} (${people}명 × ₩${price.toLocaleString()})` : '';
+}
+
+function saveInlineTour(i) {
+  const name = document.getElementById('it-name-' + i).value.trim();
+  const dateVal = document.getElementById('it-date-' + i).value;
+  const price = parseInt(document.getElementById('it-price-' + i).value) || 0;
+  const people = parseInt(document.getElementById('it-people-num-' + i).textContent) || 1;
+  const status = document.getElementById('it-status-' + i).value;
+  const memo = document.getElementById('it-memo-' + i).value.trim();
+  if (!name) { alert('투어 이름을 입력해주세요!'); return; }
+  const dateStr = dateVal ? `${formatTourDate(dateVal)}${price ? ' · ₩' + (price * people).toLocaleString() + ' (' + people + '인)' : ''}` : '';
+  const item = { name, date: dateVal, dateStr, price, people, status, memo };
+  tourItems[i] = { ...tourItems[i], ...item };
+  if (tourItems[i].key) updateData('tours', tourItems[i].key, item);
+  renderExtraTours(tourItems);
+}
+
+function editTour(i) {
+  const t = tourItems[i];
+  document.getElementById('tour-name').value = t.name;
+  document.getElementById('tour-date').value = t.date || '';
+  document.getElementById('tour-price').value = t.price || '';
+  tourPeople = t.people || 6;
+  document.getElementById('tour-people-num').textContent = tourPeople;
+  document.getElementById('tour-status').value = t.status;
+  document.getElementById('tour-memo').value = t.memo || '';
+  calcTourTotal();
+  editingTourKey = i;
+  document.querySelector('#modal-tour .modal-title').textContent = '✏️ 투어 수정';
+  const btn = document.getElementById('tour-confirm-btn');
+  btn.textContent = '수정 완료';
+  btn.onclick = addTour;
+  showModal('modal-tour');
+}
+
+function removeTour(i) {
+  if (!confirm('이 투어를 삭제할까요?')) return;
+  if (tourItems[i].key) deleteData('tours', tourItems[i].key);
+  tourItems.splice(i, 1);
+  renderExtraTours(tourItems);
+}
+// ── FIXED NOTICE EDIT ──
+function editFixedNotice(e, type) {
+  e.stopPropagation();
+  const titleEl = document.getElementById(type + '-title');
+  const contentEl = document.getElementById(type + '-content');
+  const bodyEl = document.getElementById('n-' + type);
+  const currentTitle = titleEl.textContent;
+
+  // 현재 항목들 추출
+  let items = [];
+  if (type === 'rules') {
+    contentEl.querySelectorAll('.rule-item').forEach(el => {
+      items.push({
+        main: el.querySelector('.rule-txt')?.textContent || '',
+        sub: el.querySelector('.rule-sub')?.textContent || ''
+      });
+    });
+  } else {
+    contentEl.querySelectorAll('.nono-item').forEach(el => {
+      items.push({
+        main: el.querySelector('.nono-txt')?.textContent || '',
+        sub: el.querySelector('.nono-sub')?.textContent || ''
+      });
+    });
+  }
+
+  bodyEl.classList.add('open');
+  contentEl.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+      <input id="fn-title-${type}" value="${currentTitle}"
+        style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;font-family:Nunito,sans-serif">
+      <div id="fn-items-${type}" style="display:flex;flex-direction:column;gap:6px">
+        ${items.map((item, i) => `
+          <div id="fn-item-${type}-${i}" style="background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px">
+            <input id="fn-main-${type}-${i}" value="${item.main}" placeholder="내용"
+              style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;font-family:Nunito,sans-serif">
+            <input id="fn-sub-${type}-${i}" value="${item.sub}" placeholder="부제목 (선택)"
+              style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:Nunito,sans-serif;color:var(--text2)">
+            <button onclick="removeFnItem('fn-item-${type}-${i}')"
+              style="align-self:flex-end;padding:3px 8px;background:#FEE2E2;color:#991b1b;border:none;border-radius:6px;font-size:11px;cursor:pointer">🗑️ 삭제</button>
+          </div>`).join('')}
+      </div>
+      <button onclick="addFnItem('${type}')"
+        style="padding:9px;background:var(--bg);border:1px dashed var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer;color:var(--text2)">
+        ＋ 항목 추가
+      </button>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button onclick="saveFixedNotice('${type}')"
+          style="flex:1;padding:9px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;cursor:pointer">저장</button>
+        <button onclick="location.reload()"
+          style="flex:1;padding:9px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer">취소</button>
+      </div>
+    </div>`;
+}
+
+let fnItemCount = { rules: 10, nono: 10 };
+
+function addFnItem(type) {
+  const container = document.getElementById('fn-items-' + type);
+  const i = fnItemCount[type]++;
+  const div = document.createElement('div');
+  div.id = `fn-item-${type}-${i}`;
+  div.style.cssText = 'background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:5px';
+  div.innerHTML = `
+    <input id="fn-main-${type}-${i}" placeholder="내용"
+      style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-weight:600;font-family:Nunito,sans-serif">
+    <input id="fn-sub-${type}-${i}" placeholder="부제목 (선택)"
+      style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:Nunito,sans-serif;color:var(--text2)">
+    <button onclick="removeFnItem('fn-item-${type}-${i}')"
+      style="align-self:flex-end;padding:3px 8px;background:#FEE2E2;color:#991b1b;border:none;border-radius:6px;font-size:11px;cursor:pointer">🗑️ 삭제</button>`;
+  container.appendChild(div);
+}
+
+function removeFnItem(id) {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
+function saveFixedNotice(type) {
+  const newTitle = document.getElementById('fn-title-' + type).value.trim();
+  if (!newTitle) return;
+  document.getElementById(type + '-title').textContent = newTitle;
+
+  const container = document.getElementById('fn-items-' + type);
+  const itemDivs = container.querySelectorAll('[id^="fn-item-"]');
+  const icons = ['🐋','🪸','💧','🌙','📷','⚠️','🚫','❌','🔴','🟡'];
+  const contentEl = document.getElementById(type + '-content');
+
+  let html = '<div style="margin-top:10px">';
+  itemDivs.forEach((div, i) => {
+    const id = div.id;
+    const suffix = id.replace(`fn-item-${type}-`, '');
+    const main = document.getElementById(`fn-main-${type}-${suffix}`)?.value.trim() || '';
+    const sub = document.getElementById(`fn-sub-${type}-${suffix}`)?.value.trim() || '';
+    if (!main) return;
+
+    if (type === 'rules') {
+      html += `<div class="rule-item">
+        <div class="rule-num">${i + 1}</div>
+        <div>
+          <div class="rule-txt">${main}</div>
+          ${sub ? `<div class="rule-sub">${sub}</div>` : ''}
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="nono-item">
+        <div class="nono-icon">${icons[i] || '⚠️'}</div>
+        <div>
+          <div class="nono-txt">${main}</div>
+          ${sub ? `<div class="nono-sub">${sub}</div>` : ''}
+        </div>
+      </div>`;
+    }
+  });
+  html += '</div>';
+  contentEl.innerHTML = html;
+}
+
+// ── NOTICE ──
+let noticeItems = [];
+let editingNoticeKey = null;
+function addNotice() {
+  const title = document.getElementById('notice-title').value.trim();
+  const content = document.getElementById('notice-content').value.trim();
+  if (!title) { alert('제목을 입력해주세요!'); return; }
+  if (editingNoticeKey !== null) {
+    noticeItems[editingNoticeKey] = { ...noticeItems[editingNoticeKey], title, content };
+    const k = noticeItems[editingNoticeKey].key;
+    if (k) updateData('notices', k, { title, content });
+    editingNoticeKey = null;
+    document.querySelector('#modal-notice .modal-title').textContent = '📣 공지 추가';
+    const btn = document.getElementById('notice-confirm-btn');
+    btn.textContent = '추가';
+    btn.onclick = addNotice;
+  } else {
+    const item = { title, content, ts: Date.now() };
+    noticeItems.push(item);
+    saveData('notices', item).then(key => { if(key) noticeItems[noticeItems.length-1].key = key; });
+  }
+  renderExtraNotices(noticeItems);
+  closeModal('modal-notice');
+  ['notice-title','notice-content'].forEach(id => document.getElementById(id).value = '');
+}
+
+function renderExtraNotices(list) {
+  noticeItems = list;
+  const el = document.getElementById('extra-notices');
+  el.innerHTML = list.map((n, i) => `
+    <div class="notice-card" id="notice-row-${i}">
+      <div style="padding:13px 14px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="notice-icon-wrap icon-purple">📌</div>
+            <div>
+              <div class="notice-ttl">${n.title}</div>
+              ${n.ts?`<div class="notice-meta">${new Date(n.ts).toLocaleDateString('ko-KR')}</div>`:''}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="inlineEditNotice(${i})" style="background:#E6F1FB;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">✏️</button>
+            <button onclick="removeNotice(${i})" style="background:#FEE2E2;border:none;border-radius:6px;padding:4px 7px;font-size:12px;cursor:pointer">🗑️</button>
+          </div>
+        </div>
+        ${n.content?`<div style="font-size:14px;color:var(--text);margin-top:10px;line-height:1.6;padding-left:46px">${n.content}</div>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function inlineEditNotice(i) {
+  const n = noticeItems[i];
+  const card = document.getElementById('notice-row-' + i);
+  card.innerHTML = `
+    <div style="padding:13px 14px;display:flex;flex-direction:column;gap:6px">
+      <input id="in-title-${i}" value="${n.title}" placeholder="공지 제목" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:Nunito,sans-serif">
+      <textarea id="in-content-${i}" placeholder="공지 내용" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;resize:vertical;min-height:80px">${n.content||''}</textarea>
+      <div style="display:flex;gap:6px">
+        <button onclick="saveInlineNotice(${i})" style="flex:1;padding:8px;background:var(--teal);color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;font-family:Nunito,sans-serif;cursor:pointer">저장</button>
+        <button onclick="renderExtraNotices(noticeItems)" style="flex:1;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:Nunito,sans-serif;cursor:pointer">취소</button>
+        <button onclick="removeNotice(${i})" style="padding:8px 12px;background:#FEE2E2;color:#991b1b;border:none;border-radius:8px;font-size:13px;cursor:pointer">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function saveInlineNotice(i) {
+  const title = document.getElementById('in-title-' + i).value.trim();
+  const content = document.getElementById('in-content-' + i).value.trim();
+  if (!title) { alert('제목을 입력해주세요!'); return; }
+  noticeItems[i] = { ...noticeItems[i], title, content };
+  if (noticeItems[i].key) updateData('notices', noticeItems[i].key, { title, content });
+  renderExtraNotices(noticeItems);
+}
+
+function editNotice(i) {
+  const n = noticeItems[i];
+  document.getElementById('notice-title').value = n.title;
+  document.getElementById('notice-content').value = n.content||'';
+  editingNoticeKey = i;
+  document.querySelector('#modal-notice .modal-title').textContent = '✏️ 공지 수정';
+  const btn = document.getElementById('notice-confirm-btn');
+  btn.textContent = '수정 완료';
+  btn.onclick = addNotice;
+  showModal('modal-notice');
+}
+
+function removeNotice(i) {
+  if (!confirm('이 공지를 삭제할까요?')) return;
+  if (noticeItems[i].key) deleteData('notices', noticeItems[i].key);
+  noticeItems.splice(i, 1);
+  renderExtraNotices(noticeItems);
+}
+
+// ── DELETE TRIP ──
+function deleteTrip(e, id) {
+  e.stopPropagation();
+  if (confirm('이 여행을 삭제할까요? 🗑️')) {
+    const el = document.getElementById(id);
+    el.style.transition = 'opacity 0.3s, transform 0.3s';
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0.95)';
+    setTimeout(() => el.remove(), 300);
+  }
+}
+
+// ── TRIP ──
+let editingMainTrip = false;
+
+function editMainTrip() {
+  // 현재 메인 여행 정보로 모달 채우기
+  const t = upcomingTrips[0] || {};
+  document.getElementById('trip-name').value = t.name || '';
+  document.getElementById('trip-start').value = t.start || '';
+  document.getElementById('trip-end').value = t.end || '';
+  document.getElementById('trip-people').value = t.people || '';
+  document.getElementById('trip-budget').value = '';
+  document.getElementById('trip-modal-title').textContent = '✏️ 여행 정보 수정';
+  const btn = document.getElementById('trip-confirm-btn');
+  btn.textContent = '저장';
+  btn.onclick = saveMainTrip;
+  editingMainTrip = true;
+  showModal('modal-trip');
+}
+
+function saveMainTrip() {
+  const name = document.getElementById('trip-name').value.trim();
+  const start = document.getElementById('trip-start').value;
+  const end = document.getElementById('trip-end').value;
+  const people = document.getElementById('trip-people').value.trim();
+  if (!name || !start) { alert('여행 이름과 출발일을 입력해주세요!'); return; }
+
+  // upcomingTrips 첫번째 여행 업데이트
+  if (upcomingTrips.length) {
+    upcomingTrips[0] = { ...upcomingTrips[0], name, start, end: end||start, people };
+  } else {
+    upcomingTrips.push({ name, start, end: end||start, people, emoji: '🏖️' });
+  }
+
+  // 홈카드 즉시 반영
+  const t = getTargetTrip(); if(t) updateHomeTripCard(t);
+  updateDday();
+
+  // Firebase 저장
+  if (useFirebase && db) db.ref('cebu/tripInfo').set({ name, start, end, people });
+
+  editingMainTrip = false;
+  document.getElementById('trip-modal-title').textContent = '✈️ 새 여행 추가';
+  const btn = document.getElementById('trip-confirm-btn');
+  btn.textContent = '추가';
+  btn.onclick = addTrip;
+  closeModal('modal-trip');
+}
+
+function addTrip() {
+  const name = document.getElementById('trip-name').value.trim();
+  const start = document.getElementById('trip-start').value;
+  const end = document.getElementById('trip-end').value;
+  const people = document.getElementById('trip-people').value.trim();
+  const budget = document.getElementById('trip-budget').value;
+  if (!name || !start) { alert('여행 이름과 출발일을 입력해주세요!'); return; }
+
+  const fmt = d => d.replace(/-/g,'.').slice(2);
+  const nights = end ? Math.round((new Date(end)-new Date(start))/(1000*60*60*24)) : '?';
+
+  // 새 카드 추가
+  const card = document.createElement('div');
+  card.className = 'trip-card';
+  card.innerHTML = `
+    <div class="trip-thumb" style="background:#C0DD97">
+      <div style="font-size:48px">✈️</div>
+      <div class="thumb-tag tag-plan">계획중 ✦</div>
+    </div>
+    <div class="trip-info">
+      <div class="trip-name">${name}</div>
+      <div class="trip-meta">
+        <span>📅 ${fmt(start)}${end?' - '+fmt(end):''}</span>
+        ${people?`<span>👨‍👩‍👧‍👦 ${people}</span>`:''}
+        ${nights!='?'?`<span>${nights}박 ${nights*1+1}일</span>`:''}
+      </div>
+      ${budget?`<div class="prog-bar" style="margin-top:8px"><div class="prog-fill fill-teal" style="width:0%"></div></div>
+      <div class="prog-lbl">예산 ₩${Number(budget).toLocaleString()} · 아직 지출 없음</div>`:''}
+    </div>`;
+  const upcoming = document.querySelector('#s-home .section-lbl');
+  upcoming.parentNode.insertBefore(card, upcoming.nextSibling);
+
+  upcomingTrips.push({ name, start, end: end||start, people, emoji: '✈️' });
+  upcomingTrips.sort((a,b) => new Date(a.start) - new Date(b.start));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const future = upcomingTrips.filter(t => new Date(t.end) >= today);
+  const target = future.length
+    ? future[0]
+    : [...upcomingTrips].sort((a,b) => new Date(b.start)-new Date(a.start))[0];
+  updateHomeTripCard(target);
+  updateDday();
+
+  if (useFirebase && db) saveData('trips', { name, start, end, people, budget });
+  closeModal('modal-trip');
+  ['trip-name','trip-start','trip-end','trip-people','trip-budget'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+}
+let groupCount = 3;
+
+function addCheckItemToGroup(input) {
+  const text = input.value.trim();
+  if (!text) return;
+  const group = input.closest('.check-group');
+  const addRow = input.closest('.check-add-row');
+  const div = document.createElement('div');
+  div.className = 'check-item';
+  div.onclick = function() { toggleCheck(this); };
+  div.innerHTML = `<div class="check-box">✓</div><div class="check-label">${text}</div><button class="check-del" onclick="deleteCheckItem(event,this)">×</button>`;
+  group.insertBefore(div, addRow);
+  input.value = '';
+  updateCheckProgress();
+}
+
+function addCheckGroup() {
+  const input = document.getElementById('new-group-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const id = groupCount++;
+  const container = document.getElementById('checklist-items');
+  const div = document.createElement('div');
+  div.className = 'check-group';
+  div.id = 'cg-' + id;
+  div.innerHTML = `
+    <div class="check-group-hdr">
+      <span class="check-group-title" id="cgt-${id}">${name}</span>
+      <div style="display:flex;gap:4px;margin-left:auto">
+        <button onclick="editGroupTitle(${id})" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">✏️</button>
+        <button onclick="deleteGroup(${id})" style="background:none;border:none;font-size:12px;cursor:pointer;color:var(--text3)">×</button>
+      </div>
+    </div>
+    <div class="check-add-row">
+      <input class="check-add-input" placeholder="이 구분에 항목 추가..." onkeydown="if(event.key==='Enter')addCheckItemToGroup(this)">
+      <button onclick="addCheckItemToGroup(this.previousElementSibling)" style="padding:5px 10px;background:var(--teal);color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer">＋</button>
+    </div>`;
+  container.appendChild(div);
+  input.value = '';
+}
+
+function editGroupTitle(id) {
+  const el = document.getElementById('cgt-' + id);
+  const current = el.textContent;
+  const newName = prompt('구분 이름 수정:', current);
+  if (newName && newName.trim()) el.textContent = newName.trim();
+}
+
+function deleteGroup(id) {
+  if (!confirm('이 구분 전체를 삭제할까요?')) return;
+  const el = document.getElementById('cg-' + id);
+  if (el) el.remove();
+  updateCheckProgress();
+}
+
+function deleteCheckItem(e, btn) {
+  e.stopPropagation();
+  btn.closest('.check-item').remove();
+  updateCheckProgress();
+}
+
+function updateCheckProgress() {
+  const total = document.querySelectorAll('#checklist-items .check-item').length;
+  const checked = document.querySelectorAll('#checklist-items .check-box.checked').length;
+  const pct = total ? Math.round(checked / total * 100) : 0;
+  document.getElementById('check-fill').style.width = pct + '%';
+  document.getElementById('check-lbl').textContent = checked + ' / ' + total;
+  document.getElementById('check-meta').textContent = checked + ' / ' + total + ' 완료' + (checked === total && total > 0 ? ' 🎉' : '');
+}
+
+// ── LOCATION AUTOCOMPLETE ──
+let locSearchTimer = null;
+
+function searchLocation(inputId, resultsId) {
+  const input = document.getElementById(inputId);
+  const results = document.getElementById(resultsId);
+  const query = input.value.trim();
+  if (query.length < 2) { results.style.display = 'none'; return; }
+  clearTimeout(locSearchTimer);
+  locSearchTimer = setTimeout(() => {
+    results.style.display = 'block';
+    results.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text2)">검색 중...</div>`;
+    fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&accept-language=ko`)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.length) {
+          results.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text2)">검색 결과가 없어요 😅</div>`;
+          return;
+        }
+        results.innerHTML = data.map(place => {
+          const name = place.display_name;
+          const short = name.split(',').slice(0,3).join(', ');
+          return `<div onclick="selectLocation('${inputId}','${resultsId}','${short.replace(/'/g,"&#39;")}','${name.replace(/'/g,"&#39;")}')"
+            style="padding:10px 12px;font-size:13px;cursor:pointer;border-bottom:0.5px solid var(--border);line-height:1.4"
+            onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''"
+          >
+            <div style="font-weight:600;color:var(--text)">📍 ${short}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">${name}</div>
+          </div>`;
+        }).join('');
+      })
+      .catch(() => {
+        results.innerHTML = `<div style="padding:10px 12px;font-size:13px;color:var(--text2)">검색 오류. 직접 입력해주세요.</div>`;
+      });
+  }, 400);
+}
+
+function selectLocation(inputId, resultsId, short, full) {
+  const input = document.getElementById(inputId);
+  const results = document.getElementById(resultsId);
+  input.value = short;
+  input.dataset.full = full;
+  results.style.display = 'none';
+}
+
+// 외부 클릭 시 자동완성 닫기
+document.addEventListener('click', e => {
+  document.querySelectorAll('[id$="-results"]').forEach(el => {
+    if (!el.contains(e.target)) el.style.display = 'none';
+  });
+});
+
+// ── CHECKLIST ──
+function toggleCheck(item) {
+  const box = item.querySelector('.check-box');
+  const label = item.querySelector('.check-label');
+  box.classList.toggle('checked');
+  label.classList.toggle('checked');
+  updateCheckProgress();
+}
+
+// ── NOTICE TOGGLE ──
+function toggleNotice(bodyId, chevId) {
+  const body = document.getElementById(bodyId);
+  const chev = document.getElementById(chevId);
+  const open = body.classList.toggle('open');
+  chev.classList.toggle('open', open);
+}
+
+// ── PHOTOS ──
+function handlePhotos(e) {
+  const files = Array.from(e.target.files);
+  const grid = document.querySelector('#photo-sections .photo-grid:last-of-type') ||
+               document.querySelector('#photo-sections .photo-grid');
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const cell = document.createElement('div');
+      cell.className = 'photo-cell';
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      cell.appendChild(img);
+      const addBtn = grid.querySelector('.photo-add');
+      if (addBtn) grid.insertBefore(cell, addBtn);
+      else grid.appendChild(cell);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+</script>
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</body>
+</html>
